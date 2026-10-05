@@ -157,7 +157,7 @@ body.bare .top, body.bare .bottom, body.bare .about, body.bare .listen { display
   <h2>Nowhere Twice</h2>
   <p>A point is walking across a pattern that is perfectly ordered and never repeats.</p>
   <p>The pattern is a quasicrystal: a flat slice through a lattice in <span data-dim>five</span> dimensions. Every small patch of it turns up again and again across the plane, yet no shift of the whole ever lines up with itself.</p>
-  <p>Each step along an edge sounds a note. An edge can point in <span data-dim>five</span> directions, and they are tuned as a chain of pure fifths, one pitch each. A step forward sounds the upper octave and a step back sounds the lower. Landing on a centre of symmetry adds a bass note.</p>
+  <p>Each step along an edge sounds a note. An edge can point in <span data-dim>five</span> directions, and they are tuned as a chain of pure fifths, one pitch each. A step forward sounds the upper octave and a step back sounds the lower. Each corner of the pattern also has a place in the dimensions the slice leaves out, and landing on one near the middle of them adds a bass note.</p>
   <p>The point follows three circles turning at golden-ratio rates, plus a slow drift, so its orbit never closes. Nothing is random. Every note is computed from the time since the piece began, at 21:25 UTC on 5 October 2026. Anyone listening at the same moment hears the same thing, and this minute will not come round again.</p>
   <p class="how">Drag to look around. Scroll or pinch to zoom. Grid shows the lines the tiling is built from: a note sounds each time the point crosses one. Hidden shows where each corner on screen sits in the dimensions the slice leaves out; the ring marks the centre, where the bass sounds. Options lets you leave the shared clock to jump in time or change speed.</p>
 </section>
@@ -262,12 +262,14 @@ const pieceNow = () => pieceAt(performance.now());
 function resyncClock() {
   if (!live) return;
   const wall = wallNow();
-  if (Math.abs(wall - pieceNow()) > 0.5) { anchorPiece = wall; anchorPerf = performance.now(); }
+  if (Math.abs(wall - pieceNow()) > 0.5) { anchorPiece = wall; anchorPerf = performance.now(); gen = null; offset = NaN; struck = {}; }
 }
 function retime(to, newRate) {
+  const moved = newRate !== rate || Math.abs(to - pieceNow()) >= 0.5;
   anchorPiece = to; anchorPerf = performance.now(); rate = newRate;
   live = rate === 1 && Math.abs(to - wallNow()) < 0.5;
-  gen = null; offset = NaN; lastClock = NaN; lastOrbit = -1e9;
+  if (moved) { gen = null; offset = NaN; struck = {}; }      // notes already queued belong to the old timeline
+  lastClock = NaN; lastOrbit = -1e9;
   syncOptions();
 }
 
@@ -312,6 +314,7 @@ function makeRoom(fold) {
     qx[i] = Math.cos(a * mult[0]); qy[i] = Math.sin(a * mult[0]);
     if (mult[1]) { q2x[i] = Math.cos(a * mult[1]); q2y[i] = Math.sin(a * mult[1]); }
     gamma[i] = fold === 5 ? GAMMA5[i] : frac(0.07 + (i + 1) / PHI) - 0.5;
+    if (fold === 12 && i > 3) gamma[i] = frac(1 - gamma[i - 4] + gamma[i - 2]) - 0.5;   // g0 - g2 + g4 = g1 - g3 + g5 = 1/2, the only twelve-fold case
     const g = gamma[i] - 0.5;
     sx += g * ex[i]; sy += g * ey[i];
     p0x += g * qx[i]; p0y += g * qy[i]; p20x += g * q2x[i]; p20y += g * q2y[i];
@@ -324,7 +327,7 @@ function makeRoom(fold) {
     room.pairs.push({ i, j, inv: 1 / det, inr: Math.abs(det) / 2, cls: Math.min(d, n - d) - 1 });
   }
   room.classes = Math.floor(n / 2);
-  // measure the window so radii can be normalised, and pick out the centres of symmetry
+  // measure the window so radii can be normalised, and set the radius inside which a landing gets the bass
   const K = A(), o = {}, rs = [];
   for (let s = 1; s <= 4000; s++) {
     const x = 90 * frac(s * 0.7548776662466927) - 45, y = 90 * frac(s * 0.5698402909980532) - 45;
@@ -526,7 +529,7 @@ function strike(A, T, room, e, voice, level) {
     if (end > lastEnd) { lastEnd = end; last = o; }
   };
   for (const [ratio, amp, decay, attack] of VOICES[voice](near)) add(f * ratio, amp * vel, tau * decay, attack);
-  if (e.star) {                                                  // a centre of symmetry: add the bass
+  if (e.star) {                                                  // near the centre of the window: add the bass
     add(room.freq[e.i] / 2, 0.26 * level, 2.4, 0.012);
     add(room.freq[e.i], 0.07 * level, 1.4, 0.012);
     add(f * 2, 0.06 * level, tau * 0.9, 0.004);
@@ -537,11 +540,12 @@ function strike(A, T, room, e, voice, level) {
 /* ---------- state ---------- */
 const stage = $("stage"), ctx = stage.getContext("2d", { alpha: false });
 const orbit = $("orbit"), octx = orbit.getContext("2d");
-let room, events = [], gen = null, audioPtr = 0;
-let A = null, soundOn = false, everStarted = false, offset = NaN, suspendTimer = 0, wake = null;
+let room, events = [], gen = null, audioPtr = 0, struck = {};   // struck, per room: piece time up to which notes are already queued
+let A = null, soundOn = false, everStarted = false, offset = NaN, suspendTimer = 0, wakeTimer = 0, wake = null;
 let vw = 1, vh = 1, dpr = 1, zoom = 48, zoomTouched = false, panX = 0, panY = 0, lastInteract = -1e9, lastFrame = performance.now();
 let gridOn = false, shownK = null, lastClock = -1, lastOrbit = -1e9;
 let voice = "mallet", volume = 1, bare = false;
+const zoomFloor = () => Math.max(ZMIN, Math.sqrt(vw * vh / 8000));   // holds the picture to about 10,000 tiles
 // the hidden view: every corner seen on screen leaves a dot at its place in the hidden plane(s)
 const hid = $("hid"), hctx = hid.getContext("2d"), hidLayer = document.createElement("canvas"), hlx = hidLayer.getContext("2d");
 let hiddenOn = false, HS = 164, hPlanes = 1, hScale = 1;
@@ -573,10 +577,12 @@ function tick() {
   if (soundOn && A && A.ac.state === "running") {
     const m = measureOffset();
     offset = !isFinite(offset) || Math.abs(m - offset) > 0.08 ? m : offset + (m - offset) * 0.02;
+    const done = struck[room.fold] ?? -Infinity;
     for (; audioPtr < events.length; audioPtr++) {
       const e = events[audioPtr];
-      if (e.t > now + 0.02 * rate) strike(A, e.t / rate + offset, room, e, voice, rate > 1 ? 1 / Math.sqrt(rate) : 1);
+      if (e.t > now + 0.02 * rate && e.t > done) strike(A, e.t / rate + offset, room, e, voice, rate > 1 ? 1 / Math.sqrt(rate) : 1);
     }
+    struck[room.fold] = Math.max(done, gen.t);
   } else audioPtr = events.length;
   let drop = 0;
   while (drop < events.length && events[drop].t < now - keep) drop++;
@@ -589,20 +595,34 @@ async function setSound(on) {
   if (on) {
     everStarted = true; $("listen").hidden = true;
     clearTimeout(suspendTimer);
-    if (!A) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; A = buildAudio(new AC()); }
+    if (!A) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; A = buildAudio(new AC()); A.ac.addEventListener("statechange", wakeAudio); }
     try { await A.ac.resume(); } catch (err) { /* stays silent; the walk carries on */ }
+    if (!soundOn) return;        // turned off again while the output was starting
     offset = NaN;
     const now = pieceNow();
     audioPtr = events.findIndex(e => e.t > now + 0.02 * rate); if (audioPtr < 0) audioPtr = events.length;
     A.master.gain.cancelScheduledValues(A.ac.currentTime);
     A.master.gain.setTargetAtTime(MASTER * volume, A.ac.currentTime, 0.35);
-    if (navigator.wakeLock && !document.hidden) navigator.wakeLock.request("screen").then(w => { wake = w; }).catch(() => {});
+    holdWake();
   } else if (A) {
+    $("listen").hidden = true;
     A.master.gain.cancelScheduledValues(A.ac.currentTime);
     A.master.gain.setTargetAtTime(0, A.ac.currentTime, 0.12);
     suspendTimer = setTimeout(() => { if (!soundOn) A.ac.suspend(); }, 6000);
     if (wake) { wake.release().catch(() => {}); wake = null; }
   }
+}
+
+function holdWake() {           // keep the screen on while the piece is sounding
+  if (!navigator.wakeLock || document.hidden) return;
+  navigator.wakeLock.request("screen").then(w => { if (soundOn) wake = w; else w.release().catch(() => {}); }).catch(() => {});
+}
+// the browser can stop the sound by itself (a call, another app, the lock screen) and not always start it again
+function wakeAudio() {
+  if (!A || !soundOn || document.hidden) return;
+  if (A.ac.state !== "running") A.ac.resume().catch(() => {});
+  clearTimeout(wakeTimer);      // if it will not start without a tap, offer Listen again
+  wakeTimer = setTimeout(() => { $("listen").hidden = !soundOn || A.ac.state === "running"; }, 800);
 }
 
 /* ---------- drawing ---------- */
@@ -611,6 +631,7 @@ function resize() {
   vw = Math.max(1, stage.clientWidth); vh = Math.max(1, stage.clientHeight);
   stage.width = Math.round(vw * dpr); stage.height = Math.round(vh * dpr);
   if (!zoomTouched) zoom = clamp(Math.min(vw, vh) / 15, 28, 58);
+  zoom = Math.max(zoom, zoomFloor());
   orbit.width = Math.round(116 * dpr); orbit.height = Math.round(116 * dpr);
   lastOrbit = -1e9;
   sizeHidden();
@@ -877,6 +898,7 @@ const pointers = new Map();
 let dragMoved = 0, downAt = 0, pinch0 = 1, zoom0 = 1;
 const spread = () => { const p = [...pointers.values()]; return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1; };
 stage.addEventListener("pointerdown", e => {
+  if (e.pointerType === "mouse" && e.button !== 0) return;
   try { stage.setPointerCapture(e.pointerId); } catch (err) { /* fine without capture */ }
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pointers.size === 1) { dragMoved = 0; downAt = performance.now(); stage.classList.add("dragging"); }
@@ -884,15 +906,17 @@ stage.addEventListener("pointerdown", e => {
 });
 stage.addEventListener("pointermove", e => {
   const p = pointers.get(e.pointerId); if (!p) return;
+  if (e.pointerType === "mouse" && !(e.buttons & 1)) { release(e, false); return; }
   const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
   lastInteract = performance.now();
   if (pointers.size === 1) {
     panX = clamp(panX - dx / zoom, -80, 80); panY = clamp(panY - dy / zoom, -80, 80);
     dragMoved += Math.abs(dx) + Math.abs(dy);
-  } else if (pointers.size === 2) { zoom = clamp(zoom0 * spread() / pinch0, ZMIN, ZMAX); zoomTouched = true; dragMoved = 99; }
+  } else if (pointers.size === 2) { zoom = clamp(zoom0 * spread() / pinch0, zoomFloor(), ZMAX); zoomTouched = true; dragMoved = 99; }
 });
 function release(e, tap) {
   if (!pointers.delete(e.pointerId)) return;
+  if (pointers.size === 2) { pinch0 = spread(); zoom0 = zoom; }
   if (pointers.size === 0) {
     stage.classList.remove("dragging");
     if (tap && dragMoved < 6 && performance.now() - downAt < 500) {
@@ -904,7 +928,7 @@ stage.addEventListener("pointerup", e => release(e, true));
 stage.addEventListener("pointercancel", e => release(e, false));
 stage.addEventListener("wheel", e => {
   e.preventDefault();
-  zoom = clamp(zoom * Math.exp(-e.deltaY * 0.0016), ZMIN, ZMAX); zoomTouched = true;
+  zoom = clamp(zoom * Math.exp(-e.deltaY * 0.0016), zoomFloor(), ZMAX); zoomTouched = true;
 }, { passive: false });
 
 function setGrid(on) { gridOn = on; $("grid").setAttribute("aria-pressed", String(on)); }
@@ -961,7 +985,7 @@ addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const onControl = e.target instanceof HTMLButtonElement || e.target instanceof HTMLInputElement;
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-  if (key === " " && !onControl) { e.preventDefault(); setSound(!soundOn); }
+  if (key === " " && !onControl) { e.preventDefault(); if (!e.repeat) setSound(!soundOn); }
   else if (key === "g") setGrid(!gridOn);
   else if (key === "d") setHidden(!hiddenOn);
   else if (key === "?" || key === "i") togglePanel("about");
@@ -986,12 +1010,20 @@ const wanted = parseInt((location.hash || "").slice(1), 10);
 setRoom([5, 7, 8, 12].includes(wanted) ? wanted : 5);
 resize();
 addEventListener("resize", resize);
+document.addEventListener("click", e => {       // a clicked button should not keep Space for itself
+  const b = e.target instanceof Element ? e.target.closest("button") : null;
+  if (b && e.detail > 0) b.blur();
+});
+const watchDpr = () => matchMedia("(resolution: " + window.devicePixelRatio + "dppx)")
+  .addEventListener("change", () => { resize(); watchDpr(); }, { once: true });
+watchDpr();
 addEventListener("hashchange", () => { const f = parseInt(location.hash.slice(1), 10); if ([5, 7, 8, 12].includes(f)) goFold(f); });
 new MutationObserver(buildPalette).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", buildPalette);
 document.addEventListener("visibilitychange", () => {
   tick();
-  if (!document.hidden && soundOn && navigator.wakeLock) navigator.wakeLock.request("screen").then(w => { wake = w; }).catch(() => {});
+  wakeAudio();
+  if (soundOn) holdWake();
 });
 setInterval(tick, 100);      // keeps the notes coming when the tab is in the background
 requestAnimationFrame(frame);
