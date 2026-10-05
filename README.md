@@ -27,6 +27,7 @@ It is a single file with no build step and no dependencies. The two typefaces lo
 | `Space` | Sound on or off |
 | `1` `2` `3` `4` | 5-, 7-, 8- and 12-fold symmetry |
 | `G` | Show the grid the tiling is built from |
+| `D` | Show the hidden dimensions |
 | `O` | Options |
 | `[` `]` | Jump one minute back or forward |
 | `L` | Back to now |
@@ -54,6 +55,8 @@ The symmetry is also kept in the address, so `index.html#7` opens the seven-fold
 **The tuning.** Each family of lines has one pitch. The pitches are stacked in pure 3:2 fifths from 220 Hz and folded into a single octave, so five families give a pentatonic scale and seven give a Lydian one. Crossing a line one way sounds the upper octave, and crossing it the other way sounds the lower. Each vertex also has a position in the dimensions the slice leaves out. Vertices near the centre of that hidden region are centres of local symmetry, and landing on one adds a bass note. The same distance sets how loud and bright every other note is.
 
 **The orbit.** The point's path is the sum of three circular motions with periods of 610 s, 610/φ s and 610/φ³ s, where φ is the golden ratio, plus a slow straight drift. Because of the drift the path never closes. Speed and heading change all the time, so each voice speeds up, slows down, falls silent and comes back in the other octave.
+
+**The hidden view.** The slice is two-dimensional, so a lattice in *n* dimensions leaves *n* − 2 directions out. Press **Hidden** to see them. Every corner of the tiling that comes on screen leaves a dot at its position in a hidden plane, and over a minute or so the dots fill in a sharp-edged shape: overlapping pentagons for five-fold symmetry, an octagon for eight-fold. That shape is the window. A lattice point becomes a corner of the tiling only when its hidden position falls inside the window. The coloured lines are the walk's last few steps, each of which is a long jump in the hidden plane, and the white dot is where the point is now. The small ring marks the centre: a step that lands inside it sounds the bass. Seven-fold symmetry has two hidden planes, shown side by side. In the five-, seven- and twelve-fold rooms, one or two of the left-out directions only ever take a few whole-number values, and those are not drawn.
 
 **The colours.** Each tile is tinted by its position in the hidden dimensions, so tiles with similar surroundings get similar colours.
 
