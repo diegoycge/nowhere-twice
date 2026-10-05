@@ -6,6 +6,12 @@ An endless piece of music that plays itself by walking across a pattern that nev
 
 A point walks across a quasicrystal tiling, and every edge it steps along sounds a note. Nothing is random. Every note is computed from the time elapsed since the piece began, at 21:25 UTC on 5 October 2026, so anyone listening at the same moment hears the same thing.
 
+## The short version
+
+Picture a floor covered in two shapes of diamond tile, laid in a pattern that follows strict rules but never repeats, however far you go. A dot walks across that floor. Each time it steps from one corner to the next, a note plays. The direction of the step picks the note, so the tune is simply the route the dot takes.
+
+The route is not random either. It is worked out from the clock, counting from the moment the piece began. That means it plays the same notes for everyone at the same time, like a radio station, and it keeps going whether or not anyone is listening. Because the floor never repeats and the route never closes into a loop, the music never repeats.
+
 ## Run it
 
 Open `index.html` in a browser and press **Listen**.
@@ -21,8 +27,21 @@ It is a single file with no build step and no dependencies. The two typefaces lo
 | `Space` | Sound on or off |
 | `1` `2` `3` `4` | 5-, 7-, 8- and 12-fold symmetry |
 | `G` | Show the grid the tiling is built from |
+| `O` | Options |
+| `[` `]` | Jump one minute back or forward |
+| `L` | Back to now |
+| `H` | Hide the controls. Tap the picture or press `Esc` to bring them back. |
 | `?` or `I` | About |
 | `F` | Full screen |
+
+**Options** holds the rest:
+
+- **Time** jumps a minute or ten minutes back or forward. Because every note comes from the clock, you can hear what it played earlier or what it will play later.
+- **Speed** runs the piece at half speed or up to eight times faster, which makes the slow changes easier to hear.
+- **Voice** changes the instrument: mallet, bell or glass.
+- **Volume** sets the level. Voice and volume are remembered in your browser.
+
+Changing the time or the speed takes you off the shared clock. **Now** puts you back.
 
 The symmetry is also kept in the address, so `index.html#7` opens the seven-fold tiling.
 

@@ -84,11 +84,12 @@ button:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
 }
 .controls > button[aria-pressed="true"]::before,
 .controls > button[aria-expanded="true"]::before { background: var(--ink); }
-.folds button {
-  font-family: var(--font-data); letter-spacing: 0; padding: 6px 7px; color: var(--ink-soft);
-  border-bottom: 1px solid transparent;
+.seg button {
+  font-family: var(--font-data); letter-spacing: 0; text-transform: none; padding: 6px 7px;
+  color: var(--ink-soft); border-bottom: 1px solid transparent;
 }
-.folds button[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.seg button[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.seg button:disabled { opacity: .4; cursor: default; }
 
 .listen {
   position: fixed; left: 50%; bottom: 23%; transform: translateX(-50%);
@@ -113,6 +114,10 @@ button:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
 .about p { margin: 0 0 11px; }
 .about p:last-child { margin-bottom: 0; }
 .about .how { color: var(--ink-soft); font-size: 13.5px; }
+.options .row { display: grid; grid-template-columns: 5.2rem minmax(0, 1fr); align-items: center; gap: 4px 12px; margin-bottom: 8px; }
+.options .seg { display: flex; flex-wrap: wrap; gap: 2px 4px; }
+.options input[type="range"] { width: 100%; max-width: 14rem; margin: 6px 0; accent-color: var(--ink); }
+body.bare .top, body.bare .bottom, body.bare .about, body.bare .listen { display: none; }
 
 @media (max-width: 560px) {
   .top, .bottom { padding-inline: 16px; }
@@ -132,7 +137,7 @@ button:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
 <div class="top">
   <header>
     <h1>Nowhere Twice</h1>
-    <p class="meta">running <span id="clock">0d 00:00:00</span></p>
+    <p class="meta">running <span id="clock">0d 00:00:00</span> &middot; <span id="status">live</span></p>
   </header>
   <div class="where" aria-hidden="true">
     <p class="label">position in <span id="lattice">&#8484;&#8309;</span></p>
@@ -148,13 +153,57 @@ button:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
   <p>The pattern is a quasicrystal: a flat slice through a lattice in <span data-dim>five</span> dimensions. Every small patch of it turns up again and again across the plane, yet no shift of the whole ever lines up with itself.</p>
   <p>Each step along an edge sounds a note. An edge can point in <span data-dim>five</span> directions, and they are tuned as a chain of pure fifths, one pitch each. A step forward sounds the upper octave and a step back sounds the lower. Landing on a centre of symmetry adds a bass note.</p>
   <p>The point follows three circles turning at golden-ratio rates, plus a slow drift, so its orbit never closes. Nothing is random. Every note is computed from the time since the piece began, at 21:25 UTC on 5 October 2026. Anyone listening at the same moment hears the same thing, and this minute will not come round again.</p>
-  <p class="how">Drag to look around. Scroll or pinch to zoom. Grid shows the lines the tiling is built from: a note sounds each time the point crosses one.</p>
+  <p class="how">Drag to look around. Scroll or pinch to zoom. Grid shows the lines the tiling is built from: a note sounds each time the point crosses one. Options lets you leave the shared clock to jump in time or change speed.</p>
+</section>
+
+<section id="options" class="about options" aria-label="Options" hidden>
+  <h2>Options</h2>
+  <div class="row">
+    <span class="label">Time</span>
+    <span class="seg" role="group" aria-label="Time">
+      <button type="button" data-jump="-600">&minus;10m</button>
+      <button type="button" data-jump="-60">&minus;1m</button>
+      <button type="button" id="live" disabled>Now</button>
+      <button type="button" data-jump="60">+1m</button>
+      <button type="button" data-jump="600">+10m</button>
+    </span>
+  </div>
+  <div class="row">
+    <span class="label">Speed</span>
+    <span class="seg" role="group" aria-label="Speed">
+      <button type="button" data-rate="0.5" aria-pressed="false">&frac12;&times;</button>
+      <button type="button" data-rate="1" aria-pressed="true">1&times;</button>
+      <button type="button" data-rate="2" aria-pressed="false">2&times;</button>
+      <button type="button" data-rate="4" aria-pressed="false">4&times;</button>
+      <button type="button" data-rate="8" aria-pressed="false">8&times;</button>
+    </span>
+  </div>
+  <div class="row">
+    <span class="label">Voice</span>
+    <span class="seg" role="group" aria-label="Voice">
+      <button type="button" data-voice="mallet" aria-pressed="true">Mallet</button>
+      <button type="button" data-voice="bell" aria-pressed="false">Bell</button>
+      <button type="button" data-voice="glass" aria-pressed="false">Glass</button>
+    </span>
+  </div>
+  <div class="row">
+    <label class="label" for="vol">Volume</label>
+    <input id="vol" type="range" min="0" max="100" value="100">
+  </div>
+  <div class="row">
+    <span class="label">View</span>
+    <span class="seg">
+      <button type="button" id="bare">Hide controls</button>
+      <button type="button" id="full">Full screen</button>
+    </span>
+  </div>
+  <p class="how">Changing the time or the speed takes you off the shared clock, so you are no longer hearing what everyone else hears. Now puts you back. With the controls hidden, tap the picture to bring them back.</p>
 </section>
 
 <div class="bottom">
   <nav class="controls" aria-label="Controls">
     <button id="snd" type="button" aria-pressed="false">Sound</button>
-    <span class="folds" role="group" aria-label="Symmetry">
+    <span class="folds seg" role="group" aria-label="Symmetry">
       <span class="label">Symmetry</span>
       <button type="button" data-fold="5" aria-pressed="true">5</button>
       <button type="button" data-fold="7" aria-pressed="false">7</button>
@@ -162,6 +211,7 @@ button:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
       <button type="button" data-fold="12" aria-pressed="false">12</button>
     </span>
     <button id="grid" type="button" aria-pressed="false">Grid</button>
+    <button id="opts" type="button" aria-expanded="false" aria-controls="options">Options</button>
     <button id="info" type="button" aria-expanded="false" aria-controls="about">About</button>
   </nav>
   <figure class="orbit" aria-hidden="true">
@@ -191,12 +241,21 @@ const frac = v => v - Math.floor(v);
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- time: everything is a function of seconds since the epoch ---------- */
-let anchorPiece = (Date.now() - EPOCH_MS) / 1000, anchorPerf = performance.now();
-const pieceAt = ms => anchorPiece + (ms - anchorPerf) / 1000;
+const wallNow = () => (Date.now() - EPOCH_MS) / 1000;
+let anchorPiece = wallNow(), anchorPerf = performance.now();
+let rate = 1, live = true;      // live: on the shared clock. Otherwise the listener has wandered off in time.
+const pieceAt = ms => anchorPiece + (ms - anchorPerf) / 1000 * rate;
 const pieceNow = () => pieceAt(performance.now());
 function resyncClock() {
-  const wall = (Date.now() - EPOCH_MS) / 1000;
+  if (!live) return;
+  const wall = wallNow();
   if (Math.abs(wall - pieceNow()) > 0.5) { anchorPiece = wall; anchorPerf = performance.now(); }
+}
+function retime(to, newRate) {
+  anchorPiece = to; anchorPerf = performance.now(); rate = newRate;
+  live = rate === 1 && Math.abs(to - wallNow()) < 0.5;
+  gen = null; offset = NaN; lastClock = NaN; lastOrbit = -1e9;
+  syncOptions();
 }
 
 /* ---------- the orbit: three circles at golden-ratio rates, plus a drift ---------- */
@@ -433,24 +492,32 @@ function partial(A, out, T, f, amp, tau, attack) {
   o.start(T); o.stop(T + attack + tau * 7.5);
   return o;
 }
-function strike(A, T, room, e) {
+// each voice is a list of partials: [frequency ratio, loudness, decay relative to the note's own, attack in seconds]
+const VOICES = {
+  mallet: near => [[1, 0.2, 1, 0.004], [2, 0.07 * (0.4 + near), 0.42, 0.003], [3, 0.03 * (0.3 + near), 0.2, 0.002], [5.4, 0.035, 0.035, 0.001]],
+  bell: near => [[1, 0.15, 1.7, 0.003], [2.756, 0.06 * (0.5 + near), 1, 0.002], [5.404, 0.03 * (0.4 + near), 0.5, 0.002], [8.933, 0.012, 0.22, 0.001]],
+  glass: near => [[1, 0.17, 1.3, 0.03], [2, 0.03 * (0.4 + near), 0.8, 0.04], [4, 0.01, 0.4, 0.02]],
+};
+function strike(A, T, room, e, voice, level) {
   const ac = A.ac;
   T = Math.max(T, ac.currentTime);
   const out = ac.createStereoPanner ? ac.createStereoPanner() : ac.createGain();
   if (out.pan) out.pan.value = 0.7 * e.sign * room.ex[e.i];
   out.connect(A.bus);
   const f = room.freq[e.i] * (e.sign > 0 ? 2 : 1), near = 1 - e.rn;
-  const vel = 0.42 + 0.58 * Math.pow(near, 1.2), tau = 0.62 * Math.pow(330 / f, 0.45);
-  let last = partial(A, out, T, f, 0.2 * vel, tau, 0.004);
-  partial(A, out, T, f * 2, 0.07 * vel * (0.4 + near), tau * 0.42, 0.003);
-  partial(A, out, T, f * 3, 0.03 * vel * (0.3 + near), tau * 0.2, 0.002);
-  partial(A, out, T, f * 5.4, 0.035 * vel, 0.022, 0.001);        // the strike of the mallet
-  if (e.star) {
-    last = partial(A, out, T, room.freq[e.i] / 2, 0.26, 2.4, 0.012);
-    partial(A, out, T, room.freq[e.i], 0.07, 1.4, 0.012);
-    partial(A, out, T, f * 2, 0.06, tau * 0.9, 0.004);
+  const vel = (0.42 + 0.58 * Math.pow(near, 1.2)) * level, tau = 0.62 * Math.pow(330 / f, 0.45);
+  let last = null, lastEnd = 0;
+  const add = (freq, amp, decay, attack) => {
+    const o = partial(A, out, T, freq, amp, decay, attack), end = attack + decay * 7.5;
+    if (end > lastEnd) { lastEnd = end; last = o; }
+  };
+  for (const [ratio, amp, decay, attack] of VOICES[voice](near)) add(f * ratio, amp * vel, tau * decay, attack);
+  if (e.star) {                                                  // a centre of symmetry: add the bass
+    add(room.freq[e.i] / 2, 0.26 * level, 2.4, 0.012);
+    add(room.freq[e.i], 0.07 * level, 1.4, 0.012);
+    add(f * 2, 0.06 * level, tau * 0.9, 0.004);
   }
-  last.onended = () => out.disconnect();
+  last.onended = () => out.disconnect();                         // release the voice once its longest partial ends
 }
 
 /* ---------- state ---------- */
@@ -460,6 +527,7 @@ let room, events = [], gen = null, audioPtr = 0;
 let A = null, soundOn = false, everStarted = false, offset = NaN, suspendTimer = 0, wake = null;
 let vw = 1, vh = 1, dpr = 1, zoom = 48, zoomTouched = false, panX = 0, panY = 0, lastInteract = -1e9, lastFrame = performance.now();
 let gridOn = false, shownK = null, lastClock = -1, lastOrbit = -1e9;
+let voice = "mallet", volume = 1, bare = false;
 
 function setRoom(fold) {
   room = makeRoom(fold);
@@ -478,23 +546,23 @@ function measureOffset() {
   const ts = A.ac.getOutputTimestamp ? A.ac.getOutputTimestamp() : null;
   if (ts && ts.performanceTime > 0 && ts.contextTime > 0) { ct = ts.contextTime; ms = ts.performanceTime; }
   else { ct = A.ac.currentTime - (A.ac.outputLatency || 0); ms = performance.now(); }
-  return ct - pieceAt(ms);
+  return ct - pieceAt(ms) / rate;     // audio time = piece time / rate + this
 }
 function tick() {
   resyncClock();
-  const now = pieceNow(), ahead = document.hidden ? 3 : 0.6;
-  if (!gen || gen.t < now - TRAIL - 1 || gen.t > now + 10) { gen = makeGen(room, now - TRAIL); events = []; audioPtr = 0; }
+  const now = pieceNow(), ahead = (document.hidden ? 3 : 0.6) * rate, keep = TRAIL * rate;
+  if (!gen || gen.t < now - keep - 1 || gen.t > now + ahead + 30) { gen = makeGen(room, now - keep); events = []; audioPtr = 0; }
   generate(room, gen, now + ahead, events);
   if (soundOn && A && A.ac.state === "running") {
     const m = measureOffset();
     offset = !isFinite(offset) || Math.abs(m - offset) > 0.08 ? m : offset + (m - offset) * 0.02;
     for (; audioPtr < events.length; audioPtr++) {
       const e = events[audioPtr];
-      if (e.t > now + 0.02) strike(A, e.t + offset, room, e);
+      if (e.t > now + 0.02 * rate) strike(A, e.t / rate + offset, room, e, voice, rate > 1 ? 1 / Math.sqrt(rate) : 1);
     }
   } else audioPtr = events.length;
   let drop = 0;
-  while (drop < events.length && events[drop].t < now - TRAIL) drop++;
+  while (drop < events.length && events[drop].t < now - keep) drop++;
   if (drop > 32) { events.splice(0, drop); audioPtr = Math.max(0, audioPtr - drop); }
 }
 
@@ -508,9 +576,9 @@ async function setSound(on) {
     try { await A.ac.resume(); } catch (err) { /* stays silent; the walk carries on */ }
     offset = NaN;
     const now = pieceNow();
-    audioPtr = events.findIndex(e => e.t > now + 0.02); if (audioPtr < 0) audioPtr = events.length;
+    audioPtr = events.findIndex(e => e.t > now + 0.02 * rate); if (audioPtr < 0) audioPtr = events.length;
     A.master.gain.cancelScheduledValues(A.ac.currentTime);
-    A.master.gain.setTargetAtTime(MASTER, A.ac.currentTime, 0.35);
+    A.master.gain.setTargetAtTime(MASTER * volume, A.ac.currentTime, 0.35);
     if (navigator.wakeLock && !document.hidden) navigator.wakeLock.request("screen").then(w => { wake = w; }).catch(() => {});
   } else if (A) {
     A.master.gain.cancelScheduledValues(A.ac.currentTime);
@@ -592,7 +660,7 @@ function draw(now, dt) {
   // tiles the walk has just brushed against
   if (pal.additive) ctx.globalCompositeOperation = "lighter";
   for (let q = end - 1; q >= 0; q--) {
-    const e = events[q], age = now - e.t;
+    const e = events[q], age = (now - e.t) / rate;
     if (age > LIT) break;
     const a = pal.litA * Math.exp(-age / 3.6) * (1 - age / LIT);
     ctx.fillStyle = rgba(pal.fam[e.i], a);
@@ -626,7 +694,7 @@ function draw(now, dt) {
   // the path
   ctx.lineCap = "round";
   for (let q = 0; q < end; q++) {
-    const e = events[q], age = now - e.t;
+    const e = events[q], age = (now - e.t) / rate;
     if (age > TRAIL) continue;
     let x0 = -Cx, y0 = -Cy;
     for (let m = 0; m < n; m++) { x0 += e.K0[m] * ex[m]; y0 += e.K0[m] * ey[m]; }
@@ -691,6 +759,10 @@ function draw(now, dt) {
     lastClock = sec;
     const a = Math.abs(sec), p2 = v => String(v).padStart(2, "0");
     $("clock").textContent = (sec < 0 ? "−" : "") + Math.floor(a / 86400) + "d " + p2(Math.floor(a / 3600) % 24) + ":" + p2(Math.floor(a / 60) % 60) + ":" + p2(a % 60);
+    const d = now - wallNow(), ad = Math.abs(d), parts = [];
+    if (rate !== 1) parts.push((rate === 0.5 ? "½" : rate) + "× speed");
+    if (ad >= 1) parts.push((ad >= 3600 ? (ad / 3600).toFixed(1) + " h" : ad >= 60 ? Math.round(ad / 60) + " min" : Math.round(ad) + " s") + (d > 0 ? " ahead" : " behind"));
+    $("status").textContent = live ? "live" : parts.join(", ") || "off the clock";
   }
   if (now - lastOrbit > 0.5 || now < lastOrbit) { lastOrbit = now; drawOrbit(now); }
 }
@@ -747,7 +819,9 @@ function release(e, tap) {
   if (!pointers.delete(e.pointerId)) return;
   if (pointers.size === 0) {
     stage.classList.remove("dragging");
-    if (tap && dragMoved < 6 && performance.now() - downAt < 500 && !everStarted) setSound(true);
+    if (tap && dragMoved < 6 && performance.now() - downAt < 500) {
+      if (bare) setBare(false); else if (!everStarted) setSound(true);
+    }
   }
 }
 stage.addEventListener("pointerup", e => release(e, true));
@@ -758,7 +832,32 @@ stage.addEventListener("wheel", e => {
 }, { passive: false });
 
 function setGrid(on) { gridOn = on; $("grid").setAttribute("aria-pressed", String(on)); }
-function setAbout(open) { $("about").hidden = !open; $("info").setAttribute("aria-expanded", String(open)); }
+function setPanel(which) {       // "about", "options" or null; only one is open at a time
+  $("about").hidden = which !== "about"; $("options").hidden = which !== "options";
+  $("info").setAttribute("aria-expanded", String(which === "about"));
+  $("opts").setAttribute("aria-expanded", String(which === "options"));
+}
+const togglePanel = which => setPanel($(which).hidden ? which : null);
+function syncOptions() {
+  document.querySelectorAll("[data-rate]").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.rate === rate)));
+  document.querySelectorAll("[data-voice]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.voice === voice)));
+  $("live").disabled = live;
+  $("vol").value = Math.round(100 * Math.sqrt(volume));
+}
+function remember() {
+  try { localStorage.setItem("nowhere-twice", JSON.stringify({ voice, volume })); } catch (err) { /* a convenience only */ }
+}
+function setVoice(v) { voice = v; syncOptions(); remember(); }
+function setVolume(v) {
+  volume = clamp(v, 0, 1); remember();
+  if (A && soundOn) A.master.gain.setTargetAtTime(MASTER * volume, A.ac.currentTime, 0.05);
+}
+function setBare(on) { bare = on; document.body.classList.toggle("bare", on); }
+function fullScreen() {
+  const el = document.documentElement;
+  if (!el.requestFullscreen) return;
+  (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen()).catch(() => {});
+}
 function goFold(fold) {
   if (fold === room.fold) return;
   setRoom(fold);
@@ -767,22 +866,40 @@ function goFold(fold) {
 $("listen").addEventListener("click", () => setSound(true));
 $("snd").addEventListener("click", () => setSound(!soundOn));
 $("grid").addEventListener("click", () => setGrid(!gridOn));
-$("info").addEventListener("click", () => setAbout($("about").hidden));
+$("info").addEventListener("click", () => togglePanel("about"));
+$("opts").addEventListener("click", () => togglePanel("options"));
+$("live").addEventListener("click", () => retime(wallNow(), 1));
+$("vol").addEventListener("input", e => setVolume((e.target.value / 100) ** 2));
+$("bare").addEventListener("click", () => setBare(true));
+$("full").addEventListener("click", fullScreen);
+document.querySelectorAll("[data-jump]").forEach(b => b.addEventListener("click", () => retime(pieceNow() + +b.dataset.jump, rate)));
+document.querySelectorAll("[data-rate]").forEach(b => b.addEventListener("click", () => retime(pieceNow(), +b.dataset.rate)));
+document.querySelectorAll("[data-voice]").forEach(b => b.addEventListener("click", () => setVoice(b.dataset.voice)));
 document.querySelectorAll("[data-fold]").forEach(b => b.addEventListener("click", () => goFold(+b.dataset.fold)));
 addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  const onButton = e.target instanceof HTMLButtonElement;
-  if (e.key === " " && !onButton) { e.preventDefault(); setSound(!soundOn); }
-  else if (e.key === "g" || e.key === "G") setGrid(!gridOn);
-  else if (e.key === "?" || e.key === "i") setAbout($("about").hidden);
-  else if (e.key === "Escape") setAbout(false);
-  else if (e.key >= "1" && e.key <= "4") goFold([5, 7, 8, 12][+e.key - 1]);
-  else if (e.key === "f" && document.documentElement.requestFullscreen) {
-    (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {});
-  }
+  const onControl = e.target instanceof HTMLButtonElement || e.target instanceof HTMLInputElement;
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (key === " " && !onControl) { e.preventDefault(); setSound(!soundOn); }
+  else if (key === "g") setGrid(!gridOn);
+  else if (key === "?" || key === "i") togglePanel("about");
+  else if (key === "o") togglePanel("options");
+  else if (key === "h") setBare(!bare);
+  else if (key === "l") retime(wallNow(), 1);
+  else if (key === "[") retime(pieceNow() - 60, rate);
+  else if (key === "]") retime(pieceNow() + 60, rate);
+  else if (key === "Escape") { setPanel(null); setBare(false); }
+  else if (key >= "1" && key <= "4") goFold([5, 7, 8, 12][+key - 1]);
+  else if (key === "f") fullScreen();
 });
 
 /* ---------- begin ---------- */
+try {
+  const saved = JSON.parse(localStorage.getItem("nowhere-twice") || "{}");
+  if (Object.prototype.hasOwnProperty.call(VOICES, saved.voice)) voice = saved.voice;
+  if (typeof saved.volume === "number" && saved.volume >= 0 && saved.volume <= 1) volume = saved.volume;
+} catch (err) { /* start with the defaults */ }
+syncOptions();
 const wanted = parseInt((location.hash || "").slice(1), 10);
 setRoom([5, 7, 8, 12].includes(wanted) ? wanted : 5);
 resize();
@@ -804,7 +921,7 @@ window.nowhereTwice = {
     B.master.gain.value = MASTER;
     const evs = [], g = makeGen(room, from);
     generate(room, g, from + seconds - 4, evs);
-    for (const e of evs) strike(B, e.t - from + 0.05, room, e);
+    for (const e of evs) strike(B, e.t - from + 0.05, room, e, voice, 1);
     const buf = await oc.startRendering(), d = buf.getChannelData(0);
     let peak = 0, sum = 0;
     for (let i = 0; i < d.length; i++) { const v = Math.abs(d[i]); if (v > peak) peak = v; sum += v * v; }
