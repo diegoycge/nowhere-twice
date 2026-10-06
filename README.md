@@ -31,6 +31,7 @@ It is a single file with no build step and no dependencies. The two typefaces lo
 | `O` | Options |
 | `[` `]` | Jump one minute back or forward |
 | `L` | Back to now |
+| `P` | One, two or three points |
 | `H` | Hide the controls. Tap the picture or press `Esc` to bring them back. |
 | `?` or `I` | About |
 | `F` | Full screen |
@@ -40,6 +41,7 @@ It is a single file with no build step and no dependencies. The two typefaces lo
 - **Time** jumps a minute or ten minutes back or forward. Because every note comes from the clock, you can hear what it played earlier or what it will play later.
 - **Speed** runs the piece at half speed or up to eight times faster, which makes the slow changes easier to hear.
 - **Voice** changes the instrument: mallet, bell or glass.
+- **Points** adds a second and a third travelling point. They circle the first one and walk the same pattern, each sounding its own notes: the second an octave lower, the third an octave higher.
 - **Volume** sets the level. Voice and volume are remembered in your browser.
 
 Changing the time or the speed takes you off the shared clock. **Now** puts you back.
@@ -57,6 +59,8 @@ The symmetry is also kept in the address, so `index.html#7` opens the seven-fold
 **The orbit.** The point's path is the sum of three circular motions with periods of 610 s, 610/φ s and 610/φ³ s, where φ is the golden ratio, plus a slow straight drift. Because of the drift the path never closes. Speed and heading change all the time, so each voice speeds up, slows down, falls silent and comes back in the other octave.
 
 **The hidden view.** The slice is two-dimensional, so a lattice in *n* dimensions leaves *n* − 2 directions out. Press **Hidden** to see them. Every corner of the tiling that comes on screen leaves a dot at its position in a hidden plane, and over a minute or so the dots fill in a sharp-edged shape: overlapping pentagons for five-fold symmetry, an octagon for eight-fold. That shape is the window. A lattice point becomes a corner of the tiling only when its hidden position falls inside the window. The coloured lines are the walk's last few steps, each of which is a long jump in the hidden plane, and the white dot is where the point is now. The small ring marks the centre: a step that lands inside it sounds the bass. Seven-fold symmetry has two hidden planes, shown side by side. In the five-, seven- and twelve-fold rooms, one or two of the left-out directions only ever take a few whole-number values, and those are not drawn.
+
+**More points.** With two or three points, the extra ones follow the first at a short distance: each adds one more slow circle (89 s one way, 233 s the other) to the first point's path. They cross many of the same grid lines a little earlier or later than the first point does, so their notes often echo it. They are computed from the clock like everything else, so everyone who chooses the same number of points hears the same thing.
 
 **The colours.** Each tile is tinted by its position in the hidden dimensions, so tiles with similar surroundings get similar colours.
 

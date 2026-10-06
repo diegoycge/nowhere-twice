@@ -193,6 +193,14 @@ body.bare .top, body.bare .bottom, body.bare .about, body.bare .listen { display
     </span>
   </div>
   <div class="row">
+    <span class="label">Points</span>
+    <span class="seg" role="group" aria-label="Number of points">
+      <button type="button" data-points="1" aria-pressed="true">1</button>
+      <button type="button" data-points="2" aria-pressed="false">2</button>
+      <button type="button" data-points="3" aria-pressed="false">3</button>
+    </span>
+  </div>
+  <div class="row">
     <label class="label" for="vol">Volume</label>
     <input id="vol" type="range" min="0" max="100" value="100">
   </div>
@@ -203,7 +211,7 @@ body.bare .top, body.bare .bottom, body.bare .about, body.bare .listen { display
       <button type="button" id="full">Full screen</button>
     </span>
   </div>
-  <p class="how">Changing the time or the speed takes you off the shared clock, so you are no longer hearing what everyone else hears. Now puts you back. With the controls hidden, tap the picture to bring them back.</p>
+  <p class="how">Changing the time or the speed takes you off the shared clock, so you are no longer hearing what everyone else hears. Now puts you back. Extra points circle the first one and walk the same pattern: the second plays an octave lower and the third an octave higher. With the controls hidden, tap the picture to bring them back.</p>
 </section>
 
 <div class="bottom">
@@ -277,10 +285,14 @@ function retime(to, newRate) {
 const T1 = 610, W1 = TAU / T1, W2 = W1 * PHI, W3 = W1 * PHI * PHI * PHI;
 const R1 = 0.5 / W1, R2 = 0.3 / W2, R3 = 0.12 / W3;
 const DRIFT = 0.011, DRIFT_X = Math.cos(1), DRIFT_Y = Math.sin(1);
-function pathPos(t, k, o) {
+// extra points circle the first one: [radius, angle per second (the sign is the direction), starting angle]
+const COMPANIONS = [null, [1.5, TAU / 89, 1.1], [2.6, -TAU / 233, 3.9]];
+function pathPos(t, k, o, w) {
   const a1 = W1 * t + 0.3, a2 = 2.1 - W2 * t, a3 = W3 * t + 4.4;
-  o.x = k * (DRIFT * DRIFT_X * t + R1 * Math.cos(a1) + R2 * Math.cos(a2) + R3 * Math.cos(a3));
-  o.y = k * (DRIFT * DRIFT_Y * t + R1 * Math.sin(a1) + R2 * Math.sin(a2) + R3 * Math.sin(a3));
+  let x = DRIFT * DRIFT_X * t + R1 * Math.cos(a1) + R2 * Math.cos(a2) + R3 * Math.cos(a3);
+  let y = DRIFT * DRIFT_Y * t + R1 * Math.sin(a1) + R2 * Math.sin(a2) + R3 * Math.sin(a3);
+  if (w) { const c = COMPANIONS[w], a = c[1] * t + c[2]; x += c[0] * Math.cos(a); y += c[0] * Math.sin(a); }
+  o.x = k * x; o.y = k * y;
   return o;
 }
 
@@ -432,12 +444,16 @@ function adjacentTiles(room, i, line, x, y) {
   }
   return [tileAt(room, i, line, mp, kp), tileAt(room, i, line, mn, kn)];
 }
-function makeGen(room, t) {
-  const g = { t, f: new Float64Array(room.n), f1: new Float64Array(room.n), K: new Float64Array(room.n) };
-  pathPos(t, room.k, P);
-  for (let i = 0; i < room.n; i++) {
-    g.f[i] = P.x * room.ex[i] + P.y * room.ey[i] + room.gamma[i];
-    g.K[i] = Math.floor(g.f[i]);
+function makeGen(room, t, count) {
+  const g = { t, w: [] }, n = room.n;
+  for (let w = 0; w < count; w++) {
+    const st = { f: new Float64Array(n), f1: new Float64Array(n), K: new Float64Array(n) };
+    pathPos(t, room.k, P, w);
+    for (let i = 0; i < n; i++) {
+      st.f[i] = P.x * room.ex[i] + P.y * room.ey[i] + room.gamma[i];
+      st.K[i] = Math.floor(st.f[i]);
+    }
+    g.w.push(st);
   }
   return g;
 }
@@ -445,28 +461,33 @@ function generate(room, g, toT, out) {
   const { n, ex, ey, gamma } = room;
   while (g.t < toT) {
     const t1 = g.t + GEN_DT;
-    pathPos(t1, room.k, P);
     let hits = null;
-    for (let i = 0; i < n; i++) {
-      const v = P.x * ex[i] + P.y * ey[i] + gamma[i];
-      const k0 = Math.floor(g.f[i]), k1 = Math.floor(v);
-      if (k1 !== k0) {
-        const up = k1 > k0, line = up ? k1 : k0;
-        (hits || (hits = [])).push({ t: g.t + GEN_DT * (line - g.f[i]) / (v - g.f[i]), i, sign: up ? 1 : -1, line });
+    for (let w = 0; w < g.w.length; w++) {
+      const st = g.w[w];
+      pathPos(t1, room.k, P, w);
+      for (let i = 0; i < n; i++) {
+        const v = P.x * ex[i] + P.y * ey[i] + gamma[i];
+        const k0 = Math.floor(st.f[i]), k1 = Math.floor(v);
+        if (k1 !== k0) {
+          const up = k1 > k0, line = up ? k1 : k0;
+          (hits || (hits = [])).push({ t: g.t + GEN_DT * (line - st.f[i]) / (v - st.f[i]), i, sign: up ? 1 : -1, line, w });
+        }
+        st.f1[i] = v;
       }
-      g.f1[i] = v;
     }
     if (hits) {
       if (hits.length > 1) hits.sort((a, b) => a.t - b.t);
       for (const c of hits) {
-        const K0 = Float64Array.from(g.K);
-        g.K[c.i] += c.sign;
-        const rn = Math.min(1, perpOf(room, g.K, -1, -1, PR).r / room.rmax);
-        pathPos(c.t, room.k, Q);
-        out.push({ t: c.t, i: c.i, sign: c.sign, K0, rn, star: rn < room.starR, tiles: adjacentTiles(room, c.i, c.line, Q.x, Q.y) });
+        const st = g.w[c.w], K0 = Float64Array.from(st.K);
+        st.K[c.i] += c.sign;
+        const rn = Math.min(1, perpOf(room, st.K, -1, -1, PR).r / room.rmax);
+        pathPos(c.t, room.k, Q, c.w);
+        // only the first point sounds the bass
+        out.push({ t: c.t, i: c.i, sign: c.sign, w: c.w, K0, rn, star: !c.w && rn < room.starR, tiles: adjacentTiles(room, c.i, c.line, Q.x, Q.y) });
       }
     }
-    g.f.set(g.f1); g.t = t1;
+    for (const st of g.w) st.f.set(st.f1);
+    g.t = t1;
   }
 }
 
@@ -515,13 +536,15 @@ const VOICES = {
   bell: near => [[1, 0.15, 1.7, 0.003], [2.756, 0.06 * (0.5 + near), 1, 0.002], [5.404, 0.03 * (0.4 + near), 0.5, 0.002], [8.933, 0.012, 0.22, 0.001]],
   glass: near => [[1, 0.17, 1.3, 0.03], [2, 0.03 * (0.4 + near), 0.8, 0.04], [4, 0.01, 0.4, 0.02]],
 };
+const REGISTER = [1, 0.5, 2], PART = [1, 0.62, 0.5];     // the second point plays an octave down, the third an octave up, both quieter
 function strike(A, T, room, e, voice, level) {
   const ac = A.ac;
+  level *= PART[e.w];
   T = Math.max(T, ac.currentTime);
   const out = ac.createStereoPanner ? ac.createStereoPanner() : ac.createGain();
   if (out.pan) out.pan.value = 0.7 * e.sign * room.ex[e.i];
   out.connect(A.bus);
-  const f = room.freq[e.i] * (e.sign > 0 ? 2 : 1), near = 1 - e.rn;
+  const f = room.freq[e.i] * (e.sign > 0 ? 2 : 1) * REGISTER[e.w], near = 1 - e.rn;
   const vel = (0.42 + 0.58 * Math.pow(near, 1.2)) * level, tau = 0.62 * Math.pow(330 / f, 0.45);
   let last = null, lastEnd = 0;
   const add = (freq, amp, decay, attack) => {
@@ -544,7 +567,7 @@ let room, events = [], gen = null, audioPtr = 0, struck = {};   // struck, per r
 let A = null, soundOn = false, everStarted = false, offset = NaN, suspendTimer = 0, wakeTimer = 0, wake = null;
 let vw = 1, vh = 1, dpr = 1, zoom = 48, zoomTouched = false, panX = 0, panY = 0, lastInteract = -1e9, lastFrame = performance.now();
 let gridOn = false, shownK = null, lastClock = -1, lastOrbit = -1e9;
-let voice = "mallet", volume = 1, bare = false;
+let voice = "mallet", volume = 1, bare = false, points = 1;
 const zoomFloor = () => Math.max(ZMIN, Math.sqrt(vw * vh / 8000));   // holds the picture to about 10,000 tiles
 // the hidden view: every corner seen on screen leaves a dot at its place in the hidden plane(s)
 const hid = $("hid"), hctx = hid.getContext("2d"), hidLayer = document.createElement("canvas"), hlx = hidLayer.getContext("2d");
@@ -572,7 +595,7 @@ function measureOffset() {
 function tick() {
   resyncClock();
   const now = pieceNow(), ahead = (document.hidden ? 3 : 0.6) * rate, keep = TRAIL * rate;
-  if (!gen || gen.t < now - keep - 1 || gen.t > now + ahead + 30) { gen = makeGen(room, now - keep); events = []; audioPtr = 0; }
+  if (!gen || gen.t < now - keep - 1 || gen.t > now + ahead + 30) { gen = makeGen(room, now - keep, points); events = []; audioPtr = 0; }
   generate(room, gen, now + ahead, events);
   if (soundOn && A && A.ac.state === "running") {
     const m = measureOffset();
@@ -650,7 +673,7 @@ function perpXY(K, o) {
   o.x = x; o.y = y; o.x2 = x2; o.y2 = y2;
   return o;
 }
-function drawHidden(end, Know) {
+function drawHidden(end, Know, others) {
   const c = hctx, h = HS / 2, sc = hScale, { qx, qy, q2x, q2y } = room, o = {};
   c.setTransform(dpr, 0, 0, dpr, 0, 0);
   c.clearRect(0, 0, hPlanes * HS, HS);
@@ -661,9 +684,10 @@ function drawHidden(end, Know) {
     c.save(); c.beginPath(); c.rect(pl * HS, 0, HS, HS); c.clip();
     c.strokeStyle = rgba(pal.ink, 0.55); c.lineWidth = 1;                   // inside this ring a step adds the bass
     c.beginPath(); c.arc(ox, h, room.starR * room.rmax * sc, 0, TAU); c.stroke();
-    const first = Math.max(0, end - 36);
-    for (let q = first; q < end; q++) {                                    // the last few steps of the walk
+    const first = Math.max(0, end - 36 * points);
+    for (let q = first; q < end; q++) {                                    // the last few steps of the first point's walk
       const e = events[q], a = (q - first + 1) / (end - first);
+      if (e.w) continue;
       perpXY(e.K0, o);
       const x0 = ox + (pl ? o.x2 : o.x) * sc, y0 = h + (pl ? o.y2 : o.y) * sc;
       c.strokeStyle = rgba(pal.fam[e.i], 0.12 + 0.88 * a * a); c.lineWidth = 0.8 + 1.4 * a;
@@ -672,6 +696,10 @@ function drawHidden(end, Know) {
     perpXY(Know, o);
     c.fillStyle = rgba(pal.ink, 1);
     c.beginPath(); c.arc(ox + (pl ? o.x2 : o.x) * sc, h + (pl ? o.y2 : o.y) * sc, 3.2, 0, TAU); c.fill();
+    for (const K of others) {
+      perpXY(K, o);
+      c.beginPath(); c.arc(ox + (pl ? o.x2 : o.x) * sc, h + (pl ? o.y2 : o.y) * sc, 2, 0, TAU); c.fill();
+    }
     c.restore();
   }
   if (hPlanes === 2) { c.strokeStyle = rgba(pal.soft, 0.4); c.lineWidth = 1; c.beginPath(); c.moveTo(HS, 0); c.lineTo(HS, HS); c.stroke(); }
@@ -826,6 +854,15 @@ function draw(now, dt) {
     ctx.strokeStyle = rgba(pal.ink, 0.9); ctx.lineWidth = 1.2 / s;
     ctx.beginPath(); ctx.arc(-panX, -panY, 6.5 / s, 0, TAU); ctx.stroke();
   }
+  const others = [];                    // the extra points, each on its own corner
+  for (let w = 1; w < points; w++) {
+    pathPos(now, room.k, Q, w);
+    const K = []; let x = -Cx, y = -Cy;
+    for (let m = 0; m < n; m++) { const k = Math.floor(Q.x * ex[m] + Q.y * ey[m] + gamma[m]); K.push(k); x += k * ex[m]; y += k * ey[m]; }
+    others.push(K);
+    ctx.fillStyle = rgba(pal.ink, 1); ctx.beginPath(); ctx.arc(x, y, 2.6 / s, 0, TAU); ctx.fill();
+    ctx.strokeStyle = rgba(pal.ink, 0.6); ctx.lineWidth = 1 / s; ctx.beginPath(); ctx.arc(x, y, 6 / s, 0, TAU); ctx.stroke();
+  }
 
   // let the edges of the picture fall away so the type has somewhere to sit
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -840,7 +877,7 @@ function draw(now, dt) {
   bg.addColorStop(0, rgba(pal.ground, 0)); bg.addColorStop(1, rgba(pal.ground, 0.8));
   ctx.fillStyle = bg; ctx.fillRect(0, H - band, W, band);
 
-  if (hiddenOn) drawHidden(end, Know);
+  if (hiddenOn) drawHidden(end, Know, others);
 
   // readouts
   const cells = $("coords").children;
@@ -945,6 +982,7 @@ const togglePanel = which => setPanel($(which).hidden ? which : null);
 function syncOptions() {
   document.querySelectorAll("[data-rate]").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.rate === rate)));
   document.querySelectorAll("[data-voice]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.voice === voice)));
+  document.querySelectorAll("[data-points]").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.points === points)));
   $("live").disabled = live;
   $("vol").value = Math.round(100 * Math.sqrt(volume));
 }
@@ -952,6 +990,7 @@ function remember() {
   try { localStorage.setItem("nowhere-twice", JSON.stringify({ voice, volume })); } catch (err) { /* a convenience only */ }
 }
 function setVoice(v) { voice = v; syncOptions(); remember(); }
+function setPoints(count) { if (count === points) return; points = count; gen = null; syncOptions(); }
 function setVolume(v) {
   volume = clamp(v, 0, 1); remember();
   if (A && soundOn) A.master.gain.setTargetAtTime(MASTER * volume, A.ac.currentTime, 0.05);
@@ -980,6 +1019,7 @@ $("full").addEventListener("click", fullScreen);
 document.querySelectorAll("[data-jump]").forEach(b => b.addEventListener("click", () => retime(pieceNow() + +b.dataset.jump, rate)));
 document.querySelectorAll("[data-rate]").forEach(b => b.addEventListener("click", () => retime(pieceNow(), +b.dataset.rate)));
 document.querySelectorAll("[data-voice]").forEach(b => b.addEventListener("click", () => setVoice(b.dataset.voice)));
+document.querySelectorAll("[data-points]").forEach(b => b.addEventListener("click", () => setPoints(+b.dataset.points)));
 document.querySelectorAll("[data-fold]").forEach(b => b.addEventListener("click", () => goFold(+b.dataset.fold)));
 addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -992,6 +1032,7 @@ addEventListener("keydown", e => {
   else if (key === "o") togglePanel("options");
   else if (key === "h") setBare(!bare);
   else if (key === "l") retime(wallNow(), 1);
+  else if (key === "p") setPoints(points % 3 + 1);
   else if (key === "[") retime(pieceNow() - 60, rate);
   else if (key === "]") retime(pieceNow() + 60, rate);
   else if (key === "Escape") { setPanel(null); setBare(false); }
@@ -1034,7 +1075,7 @@ window.nowhereTwice = {
   async render(seconds = 20, from = pieceNow()) {
     const sr = 44100, oc = new OfflineAudioContext(2, Math.floor(sr * seconds), sr), B = buildAudio(oc);
     B.master.gain.value = MASTER;
-    const evs = [], g = makeGen(room, from);
+    const evs = [], g = makeGen(room, from, points);
     generate(room, g, from + seconds - 4, evs);
     for (const e of evs) strike(B, e.t - from + 0.05, room, e, voice, 1);
     const buf = await oc.startRendering(), d = buf.getChannelData(0);
